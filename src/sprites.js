@@ -1,7 +1,66 @@
 
 import Constants from "./constants";
-const fs = require('fs'),
-    PNG = require('pngjs').PNG;
+import Utils from "./utils";
+import fs from 'fs';
+import _PNG from "pngjs"
+const PNG = _PNG.PNG;
+
+// read all of the sprites
+const bufferToSprite = (buffer) => {
+	const channelA = buffer.slice(0, 8);
+	const channelB = buffer.slice(8, 16);
+
+	let output = "";
+	for(let i = 0 ; i < 8 ; i++) {
+		const testA = Utils.dec2bin(channelA[i]);
+		const testB = Utils.dec2bin(channelB[i]);
+		output += Utils.chrAdd(testA, testB);
+	}
+
+	return output;
+}
+
+/**
+ * Given a 64 character string of sprite data, return a 16-byte buffer containing
+ * the sprite as it should appear in the CHR banks of a ROM
+ **/
+const spriteToBytes = (spriteData) => {
+	const buffer = Buffer.alloc(16);
+
+	// read the sprite 8 characters at a time
+	let bufferIndex = 0;
+	for(let i = 0 ; i < spriteData.length ; i += 8) {
+		const byte = spriteData.substring(i, i+8);
+		
+		// now break down the channel A and B values
+		// if theres a 3 then thats a 1 in both channels
+		// a 2 is a 1 in channel B and a 1 is a 1 in channel A
+		let channelA = "";
+		let channelB = "";
+
+		for(let j = 0 ; j < byte.length ; j++) {
+			if(byte[j] === "3") {
+				channelA += "1";
+				channelB += "1";
+			} else if(byte[j] === "2") {
+				channelA += "0";
+				channelB += "1";
+			} else if(byte[j] === "1") {
+				channelA += "1";
+				channelB += "0";
+			} else {
+				channelA += "0";
+				channelB += "0";
+			}
+		}
+
+
+		buffer[bufferIndex++] = parseInt(channelA, 2);
+		buffer[bufferIndex+7] = parseInt(channelB, 2);
+	}
+
+	return buffer;
+};
 
 /**
  * Given a 64 character string of sprite data and a color map
@@ -90,5 +149,7 @@ const buildSpriteSheet = (spriteArray, colorMap, destination, spritesPerRow = 10
  **/
 export default {
 	spriteToPNG: spriteToPNG,
-	buildSpriteSheet: buildSpriteSheet
+	buildSpriteSheet: buildSpriteSheet,
+	spriteToBytes: spriteToBytes,
+	bufferToSprite: bufferToSprite
 };

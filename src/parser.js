@@ -1,41 +1,11 @@
+import Constants from "./constants";
+import Sprites from "./sprites";
+
 const fs = require('fs');
 const Promise = require('promise');
 const open = Promise.denodeify(fs.open);
-
-const _16k = 16384;
-
-import Constants from "./constants";
+const _16k = Constants._16k;
 const opcodes = Constants.opcodes;
-
-/**
- * Take a decimal number and return it as a binary string
- **/
-const dec2bin = dec => (dec >>> 0).toString(2);
-
-/**
- * Take a decimal number and return it as a hex string
- **/
-const dec2hex = dec => (dec >>> 0).toString(16);
-
-/**
- * Add together 2 binary strings according to the rules of sprite channels in CHR
- * Channel A bears weight 1 and Channel B bears weight 2
- * ex: 11110000 + 11111111 = 33332222
- **/
-const chrAdd = (channelA, channelB) => {
-	while(channelA.length < 8) {
-		channelA = "0" + channelA;
-	}
-	while(channelB.length < 8) {
-		channelB = "0" + channelB;
-	}
-
-	let output = "";
-	for(let i = 0 ; i < channelB.length ; i++) {
-		output += parseInt(channelA[i]) + (2 * parseInt(channelB[i]));
-	}
-	return output;
-};
 
 /**
  * Print the given 64-character string to the console as an 8x8 sprite
@@ -63,7 +33,7 @@ const validateHeader = (fd) => {
 			'S'.charCodeAt(0),
 			0x01a
 		];
-		const buffer = new Buffer(16);
+		const buffer = Buffer.alloc(16);
 		let num = fs.readSync(fd, buffer, 0, 16, 0);
 		for(let i in codes) {
 			if(buffer[i] !== codes[i]) {
@@ -73,6 +43,7 @@ const validateHeader = (fd) => {
 
 		// now exctract the number of PRG and CHR banks
 		accept({
+			raw: buffer,
 			prgBanks: buffer[4],
 			chrBanks: buffer[5]
 		});
@@ -85,7 +56,7 @@ const validateHeader = (fd) => {
 const readPRGBanks = (fd, numberOfBanks) => {
 	return new Promise((accept, reject) => {
 		const size = _16k * numberOfBanks;
-		const buffer = new Buffer(size);
+		const buffer = Buffer.alloc(size);
 		let num = fs.read(fd, buffer, 0, size, 16, (err, num, buffer) => {
 			if(err) reject(err);
 			else {
@@ -123,7 +94,7 @@ const readPRGBanks = (fd, numberOfBanks) => {
 const readCHRBanks = (fd, prgSize, numberOfBanks) => {
 	return new Promise((accept, reject) => {
 		const size = (_16k / 2) * numberOfBanks;
-		const buffer = new Buffer(size);
+		const buffer = Buffer.alloc(size);
 		let num = fs.read(fd, buffer, 0, size, 16 + prgSize, (err, num, buffer) => {
 			if(err) reject(err);
 			else {
@@ -133,18 +104,8 @@ const readCHRBanks = (fd, prgSize, numberOfBanks) => {
 					for(let offset = 0; offset < 512; offset++) {
 						let pos = (bank * 512) + (offset * 16);
 
-						// read all of the sprites
-						const channelA = buffer.slice(pos, pos+7);
-						const channelB = buffer.slice(pos+8,pos+15);
-
-						let output = "";
-						for(let i = 0 ; i < 8 ; i++) {
-							const testA = dec2bin(channelA[i]);
-							const testB = dec2bin(channelB[i]);
-							output += chrAdd(testA, testB);
-						}
-						// printSprite(output);
-						sprites.push(output);
+						const fullBuffer = buffer.slice(pos, pos+16);
+						sprites.push(Sprites.bufferToSprite(fullBuffer));
 					}
 				}
 
@@ -167,10 +128,10 @@ const readTitleBank = (fd, prgSize, chrSize) => {
 				accept(null);
 			} else if(stats.size - startPos === 128) {
 				const size = 128;
-				const buffer = new Buffer(size);
+				const buffer = Buffer.alloc(size);
 				let num = fs.read(fd, buffer, 0, size, startPos, (err, num, buffer) => {
 					if(err) reject(err);
-					else accept(buffer.toString("ascii"));
+					else accept(buffer.toString("ascii").replace(/[\u0000]*$/, ""));
 				});
 			} else {
 				reject("Unexpected excess "+(stats.size - startPos)+" bytes at the end of the file.");
@@ -193,6 +154,7 @@ const parseFile = (path) => {
 						const prg = {bankCount: headerData.prgBanks, num: num, buffer: buffer, instructions: instructions};
 						return readCHRBanks(fd, num, headerData.chrBanks).then(({num, buffer, sprites}) => {
 							return {
+								hdr: headerData.raw,
 								prg: prg,
 								chr: {bankCount: headerData.chrBanks, num: num, buffer: buffer, sprites: sprites}
 							}

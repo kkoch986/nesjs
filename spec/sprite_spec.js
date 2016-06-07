@@ -1,0 +1,32 @@
+
+import Parser from "../src/parser";
+import Sprites from "../src/sprites";
+const testCases = [
+	[Buffer.from([0x03, 0x0f, 0x1f, 0x1f, 0x1c, 0x24, 0x26, 0x66, 0x00, 0x00, 0x00, 0x00, 0x1f, 0x3f, 0x3f, 0x7f]), "0000001100001111000111110001111100033322003223220032233203322332"],
+	[Buffer.from([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]), "0000000000000000000000000000000000000000000000000000000000000000"],
+	[Buffer.from([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]), "1111111111111111111111111111111111111111111111111111111111111111"],
+	[Buffer.from([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]), "2222222222222222222222222222222222222222222222222222222222222222"],
+	[Buffer.from([0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF]), "3333333333333333333333333333333333333333333333333333333333333333"],
+];
+
+/**
+ * verify that spriteToBytes and the CHR sprite parsing functions work and can be used to recreate each others output.
+ **/
+describe("Bytes to Sprites", () => {
+	it("can create a sprite from a buffer", () => {
+		for(let i in testCases) {
+			const test = testCases[i];
+			expect(Sprites.bufferToSprite(test[0])).toEqual(test[1]);
+		}
+	});
+});
+
+describe("Sprites to Bytes", () => {
+	it("can restore a sprite to a buffer", () => {
+		for(let i in testCases) {
+			const test = testCases[i];
+			expect(Sprites.spriteToBytes(test[1])).toEqual(test[0]);
+		}
+	});
+});
+

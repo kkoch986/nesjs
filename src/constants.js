@@ -1,5 +1,6 @@
+const Constants = {
+	_16k: 16384,
 
-export default {
 	// The RGBA represntation of a transparent color
 	transparent: [0x00,0x00,0x00,0x00],
 
@@ -240,3 +241,5 @@ export default {
 		}
 	}
 }
+
+export default Constants;
